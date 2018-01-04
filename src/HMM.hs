@@ -4,12 +4,24 @@ import Flags
 import Data.Matrix as M
 import Prelude as P
 
--- HMM structure where p is transition probability matrix, q is emission probability matrix and s is matrix of start probabilities 
+-- HMM structure where p is transition probability matrix, q is emission probability matrix and s is matrix of initial probabilities 
 data HMM = HMM { p :: Matrix Double
      	       , q :: Matrix Double
 	       , s :: Matrix Double
 	       }
 	       deriving Show
+
+-- Function that returns matrix of transition probabilities
+transitionMatrix :: HMM -> Matrix Double
+transitionMatrix (HMM p q s) = p
+
+-- Function that returns matrix of emition probabilities
+emissionMatrix :: HMM -> Matrix Double
+emissionMatrix (HMM p q s) = q
+
+-- Function that returns matrix of initial probabilities
+initialMatrix :: HMM -> Matrix Double
+initialMatrix (HMM p q s) = s
 
 -- A constant used as multiplier when creating new model
 constantPrecision :: Double
@@ -41,16 +53,17 @@ defaultHMM n m = HMM (constMatrix n n $ inv n)
 -- Transition matrix represents scaled counted transitions
 -- n = m
 fromList :: Int  -> [Int] -> HMM
-fromList n l@(h:t) = HMM (scale $ transitions n l)
+fromList n l@(h:t) = HMM (scale $ countTransitions n l)
 	     	       	   (constMatrix n n $ inv n) 
 			   (setElem constantPrecision (1, h) $ scaleMatrix (1 - constantPrecision) (constMatrix 1 n 1))
 
-scale :: Matrix Double -> Matrix Double
-scale m = fromLists $ map (\l -> map (/(sum l)) l) (toLists m)
+-- Scales transition matrix to sum of 1
+scaleTransitions :: Matrix Double -> Matrix Double
+scaleTransitions m = fromLists $ map (\l -> map (/(sum l)) l) (toLists m)
 
 -- Counts transitions in list
-transitions :: Int -> [Int] -> Matrix Double
-transitions n l = foldl increse (M.fromList n n $ repeat 1) $ zip l $ tail l
+countTransitions :: Int -> [Int] -> Matrix Double
+countTransitions n l = foldl increse (M.fromList n n $ repeat 1) $ zip l $ tail l
 
 increse :: Num a => Matrix a -> (Int, Int) -> Matrix a
 increse m (x, y) = setElem ((getElem x y m) + 1) (x, y) m
