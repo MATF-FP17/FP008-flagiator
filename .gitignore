@@ -39,3 +39,7 @@ dist
 # Temp files
 *#
 *~
+
+# Images
+*.jpg
+*.png

@@ -37,7 +37,7 @@ constantPrecision :: Double
 constantPrecision = 0.8
 
 nearlyEye :: Int -> Matrix Double
-nearlyEye n = matrix n n $ \(i, j) -> if i == j then constantPrecision else (1-constantPrecision)/(fromInteger $ toInteger n)
+nearlyEye n = matrix n n $ \(i, j) -> if i == j then constantPrecision else (1-constantPrecision)/((fromInteger $ toInteger n) - 1)
 
 -- -_-
 inv :: Int -> Double
@@ -104,14 +104,14 @@ backwardAlgorithm model ys = foldr (backwardIteration model) (take (n model) $ r
 transitionEvaluation :: HMM -> [Int] -> Int -> Int -> Int -> Double
 transitionEvaluation model@(HMM p q s) ys i j t = let 
 							y1 = take t ys
-							y2 = drop t ys
+							y2 = drop (t + 1) ys
 							alpha = forwardAlgorithm model y1
 							beta = backwardAlgorithm model y2
-						  in alpha!!(i-1) * beta!!(j-1) * p!(i, j) / (sum $ forwardAlgorithm model ys)
+						  in alpha!!(i-1) * beta!!(j-1) * p!(i, j) * q!(j, ys!!t) -- / (sum $ forwardAlgorithm model ys)
 
 -- Gives the next iteration of HMM matrix of probabilities for new input (by definition)
 learnP :: HMM -> [Int] -> Matrix Double
-learnP model ys = scaleTransitions $ fromLists $ [[sum [transitionEvaluation model ys i j t | t <- [1..(length ys)]] | j <- [1..(n model)]] | i <- [1..(n model)]]
+learnP model ys = scaleTransitions $ fromLists $ [[sum [transitionEvaluation model ys i j t | t <- [1..((length ys) - 1)]] | j <- [1..(n model)]] | i <- [1..(n model)]]
 
 -- EVERYTHING OPTIMIZED (access to the element of matrix is done in constant time)
 forwardAlgorithm' :: HMM -> [Int] -> Matrix Double
@@ -123,14 +123,51 @@ backwardAlgorithm' model ys = fromLists $ foldr (\y m -> (backwardIteration mode
 -- Gives the next iteration of HMM matrix of probabilities for new input (optimized)
 learnP' :: HMM -> [Int] -> Matrix Double
 learnP' model@(HMM p q s) ys = let
-				alphas = forwardAlgorithm' model ys
-				betas = backwardAlgorithm' model ys
-				zetas i j t = alphas!(t, i) * p!(i, j) * q!(j, ys!!(t-1)) * betas!(t+1, j) -- / sum [alphas!((length ys) + 1, k) | k <- [1..(n model)]]
-		   		in scaleTransitions $ fromLists $ [[sum [zetas i j t | t <- [1..(length ys)]] | j <- [1..(n model)]] | i <- [1..(n model)]]
+				alphas = transpose $ submatrix 1 (length ys) 1 (n model) $ forwardAlgorithm' model ys
+				betas = submatrix 2 ((length ys) + 1) 1 (n model) $ backwardAlgorithm' model ys
+				qs = transpose $ fromLists $ zipWith (\l qq -> (map (\x -> qq!!(x-1)) l)) (take (n model) $ repeat ys) (toLists q)
+				in scaleTransitions $ scalarMatrixProduct p $ alphas * (scalarMatrixProduct betas qs)
 
 --baumWelchAlgorithm :: HMM -> [Int] -> HMM
 --baumWelchAlgorithm model ys = HMM (learnP model ys) (learnQ model ys) s
 
+
+scalarMatrixProduct :: Num a => Matrix a -> Matrix a -> Matrix a
+scalarMatrixProduct x y = matrix (nrows x) (ncols x) (\(i, j) -> x!(i, j) * y!(i, j)) 
+
+-- TESTS KOCKICE
+
+testKockice :: [Int]
+testKockice = [(1*k) `mod` 6 + 1 | k <- [1..200]]
+
+kockice :: HMM
+kockice = HMM (nearlyEye 2) (fromLists [[1/6 | _ <- [1..6]], [1/4, 1/12, 1/4, 1/12, 1/4, 1/12]]) [0.5, 0.5]
+
+kockice2 :: HMM
+kockice2 = HMM (nearlyEye 2) (fromLists [[1/6 | _ <- [1..6]], [1/3-0.0001, 0.0001, 1/3-0.0001, 0.0001, 1/3-0.0001, 0.0001]]) [0.5, 0.5]
+
+forwardKockice :: Matrix Double
+forwardKockice = forwardAlgorithm' kockice testKockice
+
+backwardKockice :: Matrix Double
+backwardKockice = backwardAlgorithm' kockice testKockice
+
+learnKockice :: (HMM -> [Int] -> a) -> a
+learnKockice f = f kockice testKockice
+
+-- TESTS kxk
+
+k :: (Num a) => a
+k = 10
+
+testBoje :: [Int]
+testBoje = [1..k]
+
+boje :: HMM
+boje = (HMM (nearlyEye k) (nearlyEye k) [1/k | _ <- [1..k]])
+
+learnBoje :: (HMM -> [Int] -> a) -> a
+learnBoje f = f boje testBoje
 
 
 
