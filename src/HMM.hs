@@ -1,25 +1,26 @@
 module HMM where
 
 import Data.Matrix as M
+import Data.Number.LogFloat as LF
 import Prelude as P
 
 -- HMM structure where p is transition probability matrix, q is emission probability matrix and s is matrix of initial probabilities 
-data HMM = HMM { p :: Matrix Double
-     	       , q :: Matrix Double
-	       , s :: [Double]
+data HMM = HMM { p :: Matrix LogFloat
+     	       , q :: Matrix LogFloat
+	       , s :: [LogFloat]
 	       }
 	       deriving Show
 
 -- Function that returns matrix of transition probabilities
-transitionMatrix :: HMM -> Matrix Double
+transitionMatrix :: HMM -> Matrix LogFloat
 transitionMatrix (HMM p q s) = p
 
 -- Function that returns matrix of emition probabilities
-emissionMatrix :: HMM -> Matrix Double
+emissionMatrix :: HMM -> Matrix LogFloat
 emissionMatrix (HMM p q s) = q
 
 -- Function that returns matrix of initial probabilities
-initialMatrix :: HMM -> [Double]
+initialMatrix :: HMM -> [LogFloat]
 initialMatrix (HMM p q s) = s
 
 -- Function that returns number of hidden states
@@ -33,14 +34,14 @@ emittedStates (HMM p q s) = ncols q
 m = emittedStates
 
 -- A constant used as multiplier when creating new model
-constantPrecision :: Double
-constantPrecision = 0.8
+constantPrecision :: LogFloat
+constantPrecision = logFloat 0.8
 
-nearlyEye :: Int -> Matrix Double
+nearlyEye :: Int -> Matrix LogFloat
 nearlyEye n = matrix n n $ \(i, j) -> if i == j then constantPrecision else (1-constantPrecision)/((fromInteger $ toInteger n) - 1)
 
 -- -_-
-inv :: Int -> Double
+inv :: Int -> LogFloat
 inv x = 1/(fromInteger $ toInteger x)
 
 -- A function that creates constant matrix for given dimensions
@@ -48,7 +49,7 @@ constMatrix :: Num a => Int -> Int -> a -> Matrix a
 constMatrix n m x = matrix n m $ \_ -> x
 
 -- Default constructor
-fromMatrices :: Matrix Double -> Matrix Double -> [Double] -> HMM
+fromMatrices :: Matrix LogFloat -> Matrix LogFloat -> [LogFloat] -> HMM
 fromMatrices p q s = HMM p q s
 
 
@@ -71,11 +72,11 @@ fromList n l@(h:t) = HMM (scaleTransitions $ countTransitions n l)
 
 
 -- Scales transition matrix to sum of 1
-scaleTransitions :: Matrix Double -> Matrix Double
-scaleTransitions m = fromLists $ map (\l -> map (/(sum l)) l) (toLists m)
+scaleTransitions :: Matrix LogFloat -> Matrix LogFloat
+scaleTransitions m = fromLists $ map (\l -> map (/(LF.sum l)) l) (toLists m)
 
 -- Counts transitions in list
-countTransitions :: Int -> [Int] -> Matrix Double
+countTransitions :: Int -> [Int] -> Matrix LogFloat
 countTransitions n l = foldl increse (M.fromList n n $ repeat 1) $ zip l $ tail l
 
 increse :: Num a => Matrix a -> (Int, Int) -> Matrix a
@@ -85,46 +86,46 @@ increse m (x, y) = setElem ((getElem x y m) + 1) (x, y) m
 
 
 -- Next iteration in forward algorithm
-forwardIteration :: HMM -> [Double] -> Int -> [Double]
-forwardIteration model@(HMM p q s) l y = [sum $ map (\(li, i) -> li * p!(i, j) * q!(j, y)) $ zip l [1..] | j <- [1..(n model)]]
+forwardIteration :: HMM -> [LogFloat] -> Int -> [LogFloat]
+forwardIteration model@(HMM p q s) l y = [LF.sum $ map (\(li, i) -> li * p!(i, j) * q!(j, y)) $ zip l [1..] | j <- [1..(n model)]]
 
 -- Returns matrix of forward iterations prolonged on a list of elements
-forwardAlgorithm :: HMM -> [Int] -> [Double]
+forwardAlgorithm :: HMM -> [Int] -> [LogFloat]
 forwardAlgorithm model@(HMM p q s) ys = foldl (forwardIteration model) s ys
 
 -- Next iteration in backward algorithm
-backwardIteration :: HMM -> Int -> [Double] -> [Double]
-backwardIteration model@(HMM p q s) y l = [sum $ map (\(lj, j) -> lj * p!(i, j) * q!(j, y)) $ zip l [1..] | i <- [1..(n model)]]
+backwardIteration :: HMM -> Int -> [LogFloat] -> [LogFloat]
+backwardIteration model@(HMM p q s) y l = [LF.sum $ map (\(lj, j) -> lj * p!(i, j) * q!(j, y)) $ zip l [1..] | i <- [1..(n model)]]
 
 -- Returns matrix of backward iterations prolonged on a list of elements
-backwardAlgorithm :: HMM -> [Int] -> [Double]
+backwardAlgorithm :: HMM -> [Int] -> [LogFloat]
 backwardAlgorithm model ys = foldr (backwardIteration model) (take (n model) $ repeat 1) ys
 
 -- Evaluates transition probability using sums of forward algorithm and backward algorithm results
-transitionEvaluation :: HMM -> [Int] -> Int -> Int -> Int -> Double
+transitionEvaluation :: HMM -> [Int] -> Int -> Int -> Int -> LogFloat
 transitionEvaluation model@(HMM p q s) ys i j t = let 
 							y1 = take t ys
-							y2 = drop (t + 1) ys
+							y2 = drop (t-1) ys
 							alpha = forwardAlgorithm model y1
 							beta = backwardAlgorithm model y2
-						  in alpha!!(i-1) * beta!!(j-1) * p!(i, j) * q!(j, ys!!t) -- / (sum $ forwardAlgorithm model ys)
+						  in alpha!!(i-1) * beta!!(j-1) * p!(i, j) * q!(j, ys!!(t-1)) -- / (LF.sum $ forwardAlgorithm model ys)
 
 -- Gives the next iteration of HMM matrix of probabilities for new input (by definition)
-learnP :: HMM -> [Int] -> Matrix Double
-learnP model ys = scaleTransitions $ fromLists $ [[sum [transitionEvaluation model ys i j t | t <- [1..((length ys) - 1)]] | j <- [1..(n model)]] | i <- [1..(n model)]]
+learnP :: HMM -> [Int] -> Matrix LogFloat
+learnP model ys = scaleTransitions $ fromLists $ [[LF.sum [transitionEvaluation model ys i j t | t <- [1..(length ys)]] | j <- [1..(n model)]] | i <- [1..(n model)]]
 
 -- EVERYTHING OPTIMIZED (access to the element of matrix is done in constant time)
-forwardAlgorithm' :: HMM -> [Int] -> Matrix Double
+forwardAlgorithm' :: HMM -> [Int] -> Matrix LogFloat
 forwardAlgorithm' model@(HMM p q s) ys = fromLists $ reverse $ foldl (\m y -> (forwardIteration model (m!!0) y):m) [s] ys
 
-backwardAlgorithm' :: HMM -> [Int] -> Matrix Double
+backwardAlgorithm' :: HMM -> [Int] -> Matrix LogFloat
 backwardAlgorithm' model ys = fromLists $ foldr (\y m -> (backwardIteration model y (m!!0)):m) [take (n model) $ repeat 1] ys
 
 -- Gives the next iteration of HMM matrix of probabilities for new input (optimized)
-learnP' :: HMM -> [Int] -> Matrix Double
+learnP' :: HMM -> [Int] -> Matrix LogFloat
 learnP' model@(HMM p q s) ys = let
 				alphas = transpose $ submatrix 1 (length ys) 1 (n model) $ forwardAlgorithm' model ys
-				betas = submatrix 2 ((length ys) + 1) 1 (n model) $ backwardAlgorithm' model ys
+				betas = submatrix 1 (length ys) 1 (n model) $ backwardAlgorithm' model ys
 				qs = transpose $ fromLists $ zipWith (\l qq -> (map (\x -> qq!!(x-1)) l)) (take (n model) $ repeat ys) (toLists q)
 				in scaleTransitions $ scalarMatrixProduct p $ alphas * (scalarMatrixProduct betas qs)
 
@@ -138,7 +139,7 @@ scalarMatrixProduct x y = matrix (nrows x) (ncols x) (\(i, j) -> x!(i, j) * y!(i
 -- TESTS KOCKICE
 
 testKockice :: [Int]
-testKockice = [(1*k) `mod` 6 + 1 | k <- [1..200]]
+testKockice = [(1*k) `mod` 6 + 1 | k <- [1..1]]
 
 kockice :: HMM
 kockice = HMM (nearlyEye 2) (fromLists [[1/6 | _ <- [1..6]], [1/4, 1/12, 1/4, 1/12, 1/4, 1/12]]) [0.5, 0.5]
@@ -146,10 +147,10 @@ kockice = HMM (nearlyEye 2) (fromLists [[1/6 | _ <- [1..6]], [1/4, 1/12, 1/4, 1/
 kockice2 :: HMM
 kockice2 = HMM (nearlyEye 2) (fromLists [[1/6 | _ <- [1..6]], [1/3-0.0001, 0.0001, 1/3-0.0001, 0.0001, 1/3-0.0001, 0.0001]]) [0.5, 0.5]
 
-forwardKockice :: Matrix Double
+forwardKockice :: Matrix LogFloat
 forwardKockice = forwardAlgorithm' kockice testKockice
 
-backwardKockice :: Matrix Double
+backwardKockice :: Matrix LogFloat
 backwardKockice = backwardAlgorithm' kockice testKockice
 
 learnKockice :: (HMM -> [Int] -> a) -> a
@@ -158,10 +159,10 @@ learnKockice f = f kockice testKockice
 -- TESTS kxk
 
 k :: (Num a) => a
-k = 10
+k = 200
 
 testBoje :: [Int]
-testBoje = [1..k]
+testBoje = [1..50]
 
 boje :: HMM
 boje = (HMM (nearlyEye k) (nearlyEye k) [1/k | _ <- [1..k]])
@@ -177,19 +178,19 @@ learnBoje f = f boje testBoje
 getSequence :: HMM -> [Int] -> [Int]
 getSequence model ys = snd $ maks1 $ viterbiAlgorithm model ys
 
-viterbiAlgorithm :: HMM -> [Int] -> [(Double, [Int])]
+viterbiAlgorithm :: HMM -> [Int] -> [(LogFloat, [Int])]
 viterbiAlgorithm model@(HMM p q s) ys = foldr (viterbiIteration model) (zip s [[1], [2]]) ys
 
-viterbiIteration ::  HMM -> Int -> [(Double, [Int])] -> [(Double, [Int])]
+viterbiIteration ::  HMM -> Int -> [(LogFloat, [Int])] -> [(LogFloat, [Int])]
 viterbiIteration model@(HMM p q s) y l = [maks model l j y | j <- [1..(n model)]]
 
-maks :: HMM -> [(Double, [Int])] -> Int -> Int -> (Double, [Int])
+maks :: HMM -> [(LogFloat, [Int])] -> Int -> Int -> (LogFloat, [Int])
 maks model@(HMM p q s) l j y = maks1 [((fst vs) * p!(i, j) * q!(j, y), j:(snd vs)) | (i, vs) <- zip [1..(n model)] l]
 
-maks1 :: [(Double, [Int])] -> (Double, [Int])
+maks1 :: [(LogFloat, [Int])] -> (LogFloat, [Int])
 maks1 = maks2 (-1, [])
 
-maks2 :: (Double, [Int]) -> [(Double, [Int])] -> (Double, [Int])
+maks2 :: (LogFloat, [Int]) -> [(LogFloat, [Int])] -> (LogFloat, [Int])
 maks2 m [] = m
 maks2 m (h:t)
   | fst h > fst m = maks2 h t
