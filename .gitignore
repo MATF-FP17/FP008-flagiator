@@ -36,6 +36,9 @@
 cabal.sandbox.config
 dist
 
+#Stack files
+.stack-work*
+
 # Temp files
 *#
 *~
@@ -43,3 +46,6 @@ dist
 # Images
 *.jpg
 *.png
+
+# Bocko's HIP
+*hip-1.5.3.0

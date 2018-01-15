@@ -129,8 +129,8 @@ learnP' model@(HMM p q s) ys = let
 				qs = transpose $ fromLists $ zipWith (\l qq -> (map (\x -> qq!!(x-1)) l)) (take (n model) $ repeat ys) (toLists q)
 				in scaleTransitions $ scalarMatrixProduct p $ alphas * (scalarMatrixProduct betas qs)
 
---baumWelchAlgorithm :: HMM -> [Int] -> HMM
---baumWelchAlgorithm model ys = HMM (learnP model ys) (learnQ model ys) s
+baumWelchAlgorithm :: HMM -> [Int] -> HMM
+baumWelchAlgorithm model@(HMM _ q s) ys = HMM (learnP model ys) q s
 
 
 scalarMatrixProduct :: Num a => Matrix a -> Matrix a -> Matrix a
