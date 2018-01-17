@@ -9,10 +9,10 @@ import Prelude as P
 
 -- HMM structure where p is transition probability matrix, q is emission probability matrix and s is matrix of initial probabilities 
 data HMM = HMM { p :: Matrix LogFloat
-     	       , q :: Matrix LogFloat
-	       , s :: [LogFloat]
-	       }
-	       deriving Show
+               , q :: Matrix LogFloat
+               , s :: [LogFloat]
+               }
+               deriving Show
 
 -- Function that returns matrix of transition probabilities
 transitionMatrix :: HMM -> Matrix LogFloat
@@ -60,9 +60,8 @@ fromMatrices p q s = HMM p q s
 -- All matrices are uniform
 defaultHMM :: Int -> Int -> HMM
 defaultHMM n m = HMM (constMatrix n n $ inv n) 
-			(constMatrix n m $ inv n)
-			(M.toList $ constMatrix 1 n $ inv n)
-
+                     (constMatrix n m $ inv n)
+                     (M.toList $ constMatrix 1 n $ inv n)
 
 neutralFieldProb :: LogFloat
 neutralFieldProb = 0.1
@@ -121,12 +120,12 @@ backwardAlgorithm model ys = foldr (backwardIteration model) (take (n model) $ r
 
 -- Evaluates transition probability using sums of forward algorithm and backward algorithm results
 transitionEvaluation :: HMM -> [Int] -> Int -> Int -> Int -> LogFloat
-transitionEvaluation model@(HMM p q s) ys i j t = let 
-							y1 = take t ys
-							y2 = drop (t-1) ys
-							alpha = forwardAlgorithm model y1
-							beta = backwardAlgorithm model y2
-						  in alpha!!(i-1) * beta!!(j-1) * p!(i, j) * q!(j, ys!!(t-1)) -- / (LF.sum $ forwardAlgorithm model ys)
+transitionEvaluation model@(HMM p q s) ys i j t = let
+                                                      y1 = take t ys
+                                                      y2 = drop (t-1) ys
+                                                      alpha = forwardAlgorithm model y1
+                                                      beta = backwardAlgorithm model y2
+                                                  in alpha!!(i-1) * beta!!(j-1) * p!(i, j) * q!(j, ys!!(t-1)) -- / (LF.sum $ forwardAlgorithm model ys)
 
 -- Gives the next iteration of HMM matrix of probabilities for new input (by definition)
 learnP :: HMM -> [Int] -> Matrix LogFloat
@@ -142,21 +141,23 @@ backwardAlgorithm' model ys = fromLists $ foldr (\y m -> (backwardIteration mode
 -- Gives the next iteration of HMM matrix of probabilities for new input (optimized)
 learnP' :: HMM -> [Int] -> Matrix LogFloat
 learnP' model@(HMM p q s) ys = let
-				alphas = M.transpose $ submatrix 1 (length ys) 1 (n model) $ forwardAlgorithm' model ys
-				betas = submatrix 2 ((length ys) + 1) 1 (n model) $ backwardAlgorithm' model ys
-				qs = M.transpose $ fromLists $ P.zipWith (\l qq -> (fmap (\x -> qq!!(x-1)) l)) (take (n model) $ repeat ys) (M.toLists q)
-				in scaleRows $ scalarMatrixProduct p $ alphas * (scalarMatrixProduct betas qs)
+                                   alphas = M.transpose $ submatrix 1 (length ys) 1 (n model) $ forwardAlgorithm' model ys
+                                   betas = submatrix 2 ((length ys) + 1) 1 (n model) $ backwardAlgorithm' model ys
+                                   qs = M.transpose $ fromLists $ P.zipWith (\l qq -> (fmap (\x -> qq!!(x-1)) l)) (take (n model) $ repeat ys) (M.toLists q)
+                               in scaleRows $ scalarMatrixProduct p $ alphas * (scalarMatrixProduct betas qs)
 
 learnQ' :: HMM -> [Int] -> Matrix LogFloat
 learnQ' model@(HMM p q s) ys = let
-				alphas = M.transpose $ submatrix 2 ((length ys) + 1) 1 (n model) $ forwardAlgorithm' model ys
-				betas = M.transpose $ submatrix 2 ((length ys) + 1) 1 (n model) $ backwardAlgorithm' model ys
-				ind = matrix (length ys) (m model) (\(i, j) -> if ys!!(i-1) == j then (logFloat 1) else (logFloat 0.0001))       -- alternativa / filtrirati pa sumirati prvu matricu
-				in scaleRows $ (scalarMatrixProduct alphas betas) * ind
+                                    alphas = M.transpose $ submatrix 2 ((length ys) + 1) 1 (n model) $ forwardAlgorithm' model ys
+                                    betas = M.transpose $ submatrix 2 ((length ys) + 1) 1 (n model) $ backwardAlgorithm' model ys
+                                    ind = matrix (length ys) (m model) (\(i, j) -> if ys!!(i-1) == j then (logFloat 1) else (logFloat 0.0001))       -- alternativa / filtrirati pa sumirati prvu matricu
+                               in scaleRows $ (scalarMatrixProduct alphas betas) * ind
 
 baumWelchAlgorithm :: HMM -> [Int] -> HMM
 baumWelchAlgorithm model@(HMM p q s) ys = HMM (learnP' model ys) (learnQ' model ys)  s
 
+evaluateSample :: HMM -> [Int] -> LogFloat
+evaluateSample model l = (P.sum) $ forwardAlgorithm model l
 
 scalarMatrixProduct :: Num a => Matrix a -> Matrix a -> Matrix a
 scalarMatrixProduct x y = matrix (nrows x) (ncols x) (\(i, j) -> x!(i, j) * y!(i, j)) 
@@ -166,14 +167,14 @@ maxIndex = fst . maximumBy (comparing snd) . zip [1..]
 
 generateIteration :: Matrix LogFloat -> Int -> Int
 generateIteration p i = let
-			transs = [p!(i, j) | j <- [1..(nrows p)]]
-			in maxIndex transs
+                           transs = [p!(i, j) | j <- [1..(nrows p)]]
+                        in maxIndex transs
 
 generateApproximateModelOutput :: HMM -> Int -> [Int]
 generateApproximateModelOutput model@(HMM p q s) len = let
-							push l@(h:t) _ = (generateIteration p h):l
---						in P.foldl push [maxIndex s] [1..len]
-						in fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) $ P.foldl push [maxIndex s] [1..len]
+                                                          push l@(h:t) _ = (generateIteration p h):l
+--                                                     in P.foldl push [maxIndex s] [1..len]
+                                                       in fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) $ P.foldl push [maxIndex s] [1..len]
 
 
 -- TESTS KOCKICE
@@ -239,10 +240,12 @@ maks2 m (h:t)
 -- mozda moze lepse
 
 testViterbi :: [Int] -> [Int]
-testViterbi x = getSequence (HMM (constMatrix 2 2 (1/2)) 
-			  (fromLists [[1/4, 1/12, 1/4, 1/12, 1/4, 1/12], [1/6|_<-[1..6]]]) 
-			  [1/2, 1/2]
-		     ) x
+testViterbi x = getSequence (
+                            HMM (constMatrix 2 2 (1/2))
+                            (fromLists [[1/4, 1/12, 1/4, 1/12, 1/4, 1/12], [1/6|_<-[1..6]]])
+                            [1/2, 1/2]
+                            )
+                            x
 
 testViterbi1 :: [Int] -> [Int]
 testViterbi1 x = getSequence (HMM.fromList 2 6 [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 4, 3, 2, 1]) x

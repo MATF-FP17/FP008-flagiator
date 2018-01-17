@@ -14,19 +14,19 @@ colorScalingFactor = 5
 -- Bijekcija N x N -> N
 twoCoordinateBijection :: Integer -> Integer -> Integer
 twoCoordinateBijection m n = 2 ^ m * (2 * n + 1) - 1
-	      
-fstCoordinateInverse :: Integer -> Integer	       
-fstCoordinateInverse x 	
+
+fstCoordinateInverse :: Integer -> Integer
+fstCoordinateInverse x
         | list == [] = 0
         | otherwise = head list
-         where list = [ z | z <- [0..(x + 1)], (x + 1) `mod` 2 ^ (z + 1) /= 0 ]	      	    
+         where list = [ z | z <- [0..(x + 1)], (x + 1) `mod` 2 ^ (z + 1) /= 0 ]
 
 sndCoordinateInverse :: Integer -> Integer
-sndCoordinateInverse x = ((x + 1) `div` 2 ^ (fstCoordinateInverse x) - 1) `div` 2	    
+sndCoordinateInverse x = ((x + 1) `div` 2 ^ (fstCoordinateInverse x) - 1) `div` 2
 
 encodeCoord :: Double -> Int
-encodeCoord p = if m == colorScalingFactor then colorScalingFactor - 1 else m 
-						where m = floor (p * fromIntegral colorScalingFactor) 
+encodeCoord p = if m == colorScalingFactor then colorScalingFactor - 1 else m
+              where m = floor (p * fromIntegral colorScalingFactor)
 
 decodeCoord :: Int -> Double
 decodeCoord m = ((fromIntegral m) + 0.5) / (fromIntegral colorScalingFactor)
@@ -56,7 +56,7 @@ mapPixelComponents :: Pixel RGB Double -> Pixel RGB Double
 mapPixelComponents (PixelRGB r g b) = PixelRGB (f r) (f g) (f b)
                                         where f = \x -> (fromIntegral (round (x * 10)) / 10)
 
- 
+      
 -- F-ja akumulacije koja kao inicijalnu vrednost uzima prvi element liste
 foldlWithHeadAsInit :: (a -> a -> a) -> [a] -> a
 foldlWithHeadAsInit f list = P.foldl f (head list) (tail list)
@@ -91,17 +91,16 @@ listFromGrid grid = fmap (fromIntegral.encodeRGB) $ concat grid
 -- Rastojanje izmedju dva kodirana piksela
 colorDistance :: Int -> Int -> LogFloat
 colorDistance pixel1Code pixel2Code = logFloat $ fromIntegral $ ((encodeCoord r1) - (encodeCoord r2)) ^ 2 + ((encodeCoord g1) - (encodeCoord g2)) ^ 2 + ((encodeCoord b1) - (encodeCoord b2)) ^ 2
-							where (PixelRGB r1 g1 b1) = decodeRGB pixel1Code
-							      (PixelRGB r2 g2 b2) = decodeRGB pixel2Code
-							      
-							      
+                                           where (PixelRGB r1 g1 b1) = decodeRGB pixel1Code
+                                                 (PixelRGB r2 g2 b2) = decodeRGB pixel2Code
+
 fieldDistance :: Int -> Int -> Int -> LogFloat
 fieldDistance x y k
-			| x == y = fromIntegral $ k * k 
-			| otherwise = fromIntegral $ k * (abs ((first x) - (first y))) + (abs ((second x) - (second y)))
-                where first a = ((a-1) `div` k) + 1
-                      second a = ((a-1) `mod` k) + 1
- 				 	 
+                      | x == y = fromIntegral $ k * k
+                      | otherwise = fromIntegral $ k * (abs ((first x) - (first y))) + (abs ((second x) - (second y)))
+                      where first a = ((a-1) `div` k) + 1
+                            second a = ((a-1) `mod` k) + 1
+                      
 inverseDistance :: LogFloat -> LogFloat
 inverseDistance d = 1/((d+1)^2)
 
