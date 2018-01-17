@@ -60,6 +60,13 @@ learning = do
            models <- evaluateMapOfModels
            mapM_ (\(name, hmm) -> writeModel name hmm) $ MP.toList models
            
+drawModels :: IO ()
+drawModels = do
+             countryDirs <- listDirectory "../img/"
+             models <- mapM readModel countryDirs
+             let modelNames = zip countryDirs $ models
+             mapM_ (\(name, hmm) -> drawFromList (generateApproximateModelOutput hmm (gridSize^2)) name) modelNames
+           
            
 classification :: IO ()
 classification = do

@@ -170,11 +170,15 @@ generateIteration p i = let
                            transs = [p!(i, j) | j <- [1..(nrows p)]]
                         in maxIndex transs
 
-generateApproximateModelOutput :: HMM -> Int -> [Int]
-generateApproximateModelOutput model@(HMM p q s) len = let
-                                                          push l@(h:t) _ = (generateIteration p h):l
+--generateApproximateModelOutput :: HMM -> Int -> [Int]
+--generateApproximateModelOutput model@(HMM p q s) len = let
+--                                                          push l@(h:t) _ = (generateIteration p h):l
 --                                                     in P.foldl push [maxIndex s] [1..len]
-                                                       in fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) $ P.foldl push [maxIndex s] [1..len]
+--                                                       in fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) $ P.foldl push [maxIndex s] [1..len]
+
+
+generateApproximateModelOutput :: HMM -> Int -> [Int]
+generateApproximateModelOutput model@(HMM p q s) len =  fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) [1..len]
 
 
 -- TESTS KOCKICE
