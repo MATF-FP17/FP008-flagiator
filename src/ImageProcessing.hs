@@ -5,6 +5,7 @@ import Graphics.Image as I
 import Graphics.Image.Interface
 import Data.List
 import Data.Matrix as M
+import Data.Number.LogFloat
 
 -- Konstanta za skaliranje pri kodiranju piksela
 colorScalingFactor :: Int
@@ -33,7 +34,7 @@ decodeCoord m = ((fromIntegral m) + 0.5) / (fromIntegral colorScalingFactor)
 maxEncodedColor :: Int
 maxEncodedColor = encodeRGB $ PixelRGB 1 1 1
 
--- "Kodiranje" uredjene trojke RGB komponenti piksela (koje su tipa Double iz [0,1]), 
+-- "Kodiranje" uredjene trojke RGB komponenti piksela (koje su tipa LogFloat iz [0,1]), 
 -- u skup {1..colorScalingFactor}
 encodeRGB :: Pixel RGB Double -> Int
 encodeRGB (PixelRGB r g b) = m * colorScalingFactor ^ 2 + n * colorScalingFactor + k + 1
@@ -54,15 +55,6 @@ decodeRGB y = PixelRGB (decodeCoord r) (decodeCoord g) (decodeCoord b)
 mapPixelComponents :: Pixel RGB Double -> Pixel RGB Double
 mapPixelComponents (PixelRGB r g b) = PixelRGB (f r) (f g) (f b)
                                         where f = \x -> (fromIntegral (round (x * 10)) / 10)
-	
-redComponent :: Pixel RGB Double -> Double
-redComponent (PixelRGB r g b) = r
-
-greenComponent :: Pixel RGB Double -> Double
-greenComponent (PixelRGB r g b) = g
-
-blueComponent :: Pixel RGB Double -> Double
-blueComponent (PixelRGB r g b) = b
 
  
 -- F-ja akumulacije koja kao inicijalnu vrednost uzima prvi element liste
@@ -97,10 +89,21 @@ listFromGrid grid = fmap (fromIntegral.encodeRGB) $ concat grid
 
 
 -- Rastojanje izmedju dva kodirana piksela
-pixelDistance :: Int -> Int -> Double
-pixelDistance pixel1Code pixel2Code = (r1 - r2) ^ 2 + (g1 - g2) ^ 2 + (b1 - b2) ^ 2
+colorDistance :: Int -> Int -> LogFloat
+colorDistance pixel1Code pixel2Code = logFloat $ fromIntegral $ ((encodeCoord r1) - (encodeCoord r2)) ^ 2 + ((encodeCoord g1) - (encodeCoord g2)) ^ 2 + ((encodeCoord b1) - (encodeCoord b2)) ^ 2
 							where (PixelRGB r1 g1 b1) = decodeRGB pixel1Code
 							      (PixelRGB r2 g2 b2) = decodeRGB pixel2Code
+							      
+							      
+fieldDistance :: Int -> Int -> Int -> LogFloat
+fieldDistance x y k
+			| x == y = fromIntegral $ k * k 
+			| otherwise = fromIntegral $ k * (abs ((first x) - (first y))) + (abs ((second x) - (second y)))
+                where first a = ((a-1) `div` k) + 1
+                      second a = ((a-1) `mod` k) + 1
+ 				 	 
+inverseDistance :: LogFloat -> LogFloat
+inverseDistance d = 1/((d+1)^2)
 
 -- Mreza dimenzije m x n jednobojnih slicica cija je boja jednaka boji prosecnog piksela (zaokruzenog)
 -- na elementu mreze polazne slike                       
@@ -112,10 +115,10 @@ gridOfAveragePieces image m n = map2D createGridPiece (averagePixelsInGrid image
 
 drawFromList :: [Int] -> String -> IO ()
 drawFromList l name = do
-		let n = round $ sqrt $ fromIntegral $ length l
-		let image = imageFromGrid $ map2D (\ y -> makeImageR VU (100, 100) (\ (i, j) -> y)) $ M.toLists $ M.fromList n n $ fmap decodeRGB l
-        	displayImage image
-		writeImage (name ++ ".jpg") image
+        let n = round $ sqrt $ fromIntegral $ length l
+        let image = imageFromGrid $ map2D (\ y -> makeImageR VU (100, 100) (\ (i, j) -> y)) $ M.toLists $ M.fromList n n $ fmap decodeRGB l
+        displayImage image
+        writeImage (name ++ ".jpg") image
 
 exec :: IO ()
 exec = do

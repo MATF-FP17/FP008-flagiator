@@ -4,6 +4,7 @@ import Data.Ord
 import Data.List
 import Data.Matrix as M
 import Data.Number.LogFloat as LF
+import ImageProcessing
 import Prelude as P
 
 -- HMM structure where p is transition probability matrix, q is emission probability matrix and s is matrix of initial probabilities 
@@ -63,19 +64,34 @@ defaultHMM n m = HMM (constMatrix n n $ inv n)
 			(M.toList $ constMatrix 1 n $ inv n)
 
 
--- Constructor that makes a priori model from first example
--- Emision matrix is uniform
--- Transition matrix represents scaled counted transitions
--- n = m
-fromList :: Int  -> [Int] -> HMM
-fromList n l@(h:t) = HMM (scaleRows $ countTransitions n l)
-				(constMatrix n n $ inv n) 
-				(M.toList $ setElem constantPrecision (1, h) $ scaleMatrix (1 - constantPrecision) (constMatrix 1 n 1))
+neutralFieldProb :: LogFloat
+neutralFieldProb = 0.1
 
+createTransitions :: Matrix LogFloat -> Matrix LogFloat
+createTransitions old = (scaleRowsK (1-neutralFieldProb) (old <-> neutralFieldRow)) <|> neutralFieldCol
+                     where neutralFieldCol = M.fromList (n+1) 1 $ repeat neutralFieldProb
+                           neutralFieldRow = M.fromList 1 n $ repeat (inv n)
+                           n = ncols old
+
+-- Constructor that makes a priori model from first examplee
+-- Transition matrix represents scaled counted transitions
+-- n - broj polja u gridu, m - broj boja
+fromList :: Int -> Int -> [Int] -> HMM
+fromList n m l@(h:t) = HMM p q s
+                    where p = createTransitions $ matrix n n evaluateFieldsDistance
+                          q = (scaleRows $ matrix n m evaluateColorsDistance) <-> neutralFieldRow
+                          s = (map ((*(1-neutralFieldProb)) . (/(P.sum ss))) ss) ++ [neutralFieldProb]
+                          ss = [inverseDistance $ colorDistance h (l!!(i-1)) | i <- [1..n]]
+                          evaluateFieldsDistance = \ (i,j) -> inverseDistance $ fieldDistance i j $ round $ sqrt $ fromIntegral n
+                          evaluateColorsDistance = \ (i,j) -> inverseDistance $ colorDistance (l !! (i-1)) j
+                          neutralFieldRow = M.fromList 1 m $ repeat (inv m) 
+
+scaleRows :: Matrix LogFloat -> Matrix LogFloat
+scaleRows = scaleRowsK 1
 
 -- Scales transition matrix to sum of 1
-scaleRows :: Matrix LogFloat -> Matrix LogFloat
-scaleRows m = fromLists $ fmap (\l -> fmap (/(LF.sum l)) l) (M.toLists m)
+scaleRowsK :: LogFloat -> Matrix LogFloat -> Matrix LogFloat
+scaleRowsK k m = fromLists $ fmap (\l -> fmap ((*k) . (/(LF.sum l))) l) (M.toLists m)
 
 -- Counts transitions in list
 countTransitions :: Int -> [Int] -> Matrix LogFloat
@@ -156,8 +172,8 @@ generateIteration p i = let
 generateApproximateModelOutput :: HMM -> Int -> [Int]
 generateApproximateModelOutput model@(HMM p q s) len = let
 							push l@(h:t) _ = (generateIteration p h):l
-						in P.foldl push [maxIndex s] [1..len]
-						--in fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) $ P.foldl push [maxIndex s] [1..len]
+--						in P.foldl push [maxIndex s] [1..len]
+						in fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) $ P.foldl push [maxIndex s] [1..len]
 
 
 -- TESTS KOCKICE
@@ -229,4 +245,4 @@ testViterbi x = getSequence (HMM (constMatrix 2 2 (1/2))
 		     ) x
 
 testViterbi1 :: [Int] -> [Int]
-testViterbi1 x = getSequence (HMM.fromList 6 [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 4, 3, 2, 1]) x
+testViterbi1 x = getSequence (HMM.fromList 2 6 [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 4, 3, 2, 1]) x
