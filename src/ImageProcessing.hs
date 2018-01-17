@@ -4,9 +4,10 @@ import Prelude as P
 import Graphics.Image as I 
 import Graphics.Image.Interface
 import Data.List
+import Data.Matrix as M
 
 -- Konstanta za skaliranje pri kodiranju piksela
-colorScalingFactor :: Integer
+colorScalingFactor :: Int
 colorScalingFactor = 5
 
 -- Bijekcija N x N -> N
@@ -22,27 +23,31 @@ fstCoordinateInverse x
 sndCoordinateInverse :: Integer -> Integer
 sndCoordinateInverse x = ((x + 1) `div` 2 ^ (fstCoordinateInverse x) - 1) `div` 2	    
 
-encodeCoord :: Double -> Integer
-encodeCoord p = if m == 5 then 4 else m 
-						where m = floor (p * fromInteger colorScalingFactor) 
+encodeCoord :: Double -> Int
+encodeCoord p = if m == colorScalingFactor then colorScalingFactor - 1 else m 
+						where m = floor (p * fromIntegral colorScalingFactor) 
+
+decodeCoord :: Int -> Double
+decodeCoord m = ((fromIntegral m) + 0.5) / (fromIntegral colorScalingFactor)
 
 maxEncodedColor :: Int
-maxEncodedColor = fromInteger $ encodeRGB $ PixelRGB 1 1 1
+maxEncodedColor = encodeRGB $ PixelRGB 1 1 1
 
 -- "Kodiranje" uredjene trojke RGB komponenti piksela (koje su tipa Double iz [0,1]), 
--- u skup {0,...5}
-encodeRGB :: Pixel RGB Double -> Integer
-encodeRGB (PixelRGB r g b) = m * colorScalingFactor ^ 2 + n * colorScalingFactor + k
+-- u skup {1..colorScalingFactor}
+encodeRGB :: Pixel RGB Double -> Int
+encodeRGB (PixelRGB r g b) = m * colorScalingFactor ^ 2 + n * colorScalingFactor + k + 1
                            where m = encodeCoord r
                                  n = encodeCoord g 
                                  k = encodeCoord b
 
 -- "Dekodiranje" prirodnog broja u piksel sa RGB komponentama iz [0,1] 
-decodeRGB :: Integer -> Pixel RGB Double
-decodeRGB x = PixelRGB r g b
-                        where r = fromInteger $ x `div` (colorScalingFactor ^ 2)
-                              g = fromInteger $ (x `div` colorScalingFactor) `mod` colorScalingFactor 
-                              b = fromInteger $ x `mod` colorScalingFactor
+decodeRGB :: Int -> Pixel RGB Double
+decodeRGB y = PixelRGB (decodeCoord r) (decodeCoord g) (decodeCoord b)
+                        where r = fromIntegral $ x `div` (colorScalingFactor ^ 2)
+                              g = fromIntegral $ (x `div` colorScalingFactor) `mod` colorScalingFactor 
+                              b = fromIntegral $ x `mod` colorScalingFactor
+                              x = y - 1
           
 -- Preslikavanje skupa svih RGB piksela sa komponentama iz [0,1] na skup RGB piksela 
 -- cija je svaka komponenta zaokruzena na jednu decimalu
@@ -88,8 +93,14 @@ averagePixelsInGrid image m n = map2D calcAveragePixel (makeGrid image m n)
                           
 -- Lista prosecnih piksela
 listFromGrid :: [[Pixel RGB Double]] -> [Int]
-listFromGrid grid = fmap (fromInteger.encodeRGB) $ concat grid
+listFromGrid grid = fmap (fromIntegral.encodeRGB) $ concat grid
 
+
+-- Rastojanje izmedju dva kodirana piksela
+pixelDistance :: Int -> Int -> Double
+pixelDistance pixel1Code pixel2Code = (r1 - r2) ^ 2 + (g1 - g2) ^ 2 + (b1 - b2) ^ 2
+							where (PixelRGB r1 g1 b1) = decodeRGB pixel1Code
+							      (PixelRGB r2 g2 b2) = decodeRGB pixel2Code
 
 -- Mreza dimenzije m x n jednobojnih slicica cija je boja jednaka boji prosecnog piksela (zaokruzenog)
 -- na elementu mreze polazne slike                       
@@ -98,7 +109,14 @@ gridOfAveragePieces image m n = map2D createGridPiece (averagePixelsInGrid image
                           where createGridPiece = \ y -> makeImageR VU (pieceRows, pieceCols) (\ (i, j) -> y)
                                 pieceRows =  (rows image) `div` m
                                 pieceCols =  (cols image) `div` n
-                                
+
+drawFromList :: [Int] -> String -> IO ()
+drawFromList l name = do
+		let n = round $ sqrt $ fromIntegral $ length l
+		let image = imageFromGrid $ map2D (\ y -> makeImageR VU (100, 100) (\ (i, j) -> y)) $ M.toLists $ M.fromList n n $ fmap decodeRGB l
+        	displayImage image
+		writeImage (name ++ ".jpg") image
+
 exec :: IO ()
 exec = do
         putStrLn "Uneti ime slike:"
@@ -108,13 +126,13 @@ exec = do
         print $ imageName
         print $ image
         print $ imageResized
---        putStrLn "Uneti dimenziju mreze:"
---        inputM <- getLine
---        inputN <- getLine
---        let m = (P.read inputM :: Int)
---        let n = (P.read inputN :: Int)
---        let approximation = imageFromGrid (gridOfAveragePieces imageResized m n)
---        print $ listFromGrid $ averagePixelsInGrid imageResized m n
---        displayImage approximation
---        writeImage "aprox.jpg" approximation
+        putStrLn "Uneti dimenziju mreze:"
+        inputM <- getLine
+        inputN <- getLine
+        let m = (P.read inputM :: Int)
+        let n = (P.read inputN :: Int)
+        let approximation = imageFromGrid (gridOfAveragePieces imageResized m n)
+        print $ listFromGrid $ averagePixelsInGrid imageResized m n
+        displayImage approximation
+        writeImage "aprox.jpg" approximation
 
