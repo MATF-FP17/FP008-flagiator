@@ -13,11 +13,14 @@ import Data.Map as MP
 import System.IO
 
 gridSize :: Int
-gridSize = 6
+gridSize = 10
 
+
+-- HMM created from just one image
 prior :: Image VU RGB Double -> HMM
 prior image = HMM.fromList (gridSize^2) maxEncodedColor $ listFromGrid $ averagePixelsInGrid image gridSize gridSize
 
+-- Evaluates HMM for given country name
 evaluateCountryModel :: String -> IO HMM
 evaluateCountryModel countryName = do
             countryContents <- listDirectory dirPath
@@ -28,19 +31,20 @@ evaluateCountryModel countryName = do
             return countryModel
             where dirPath = "../img/" ++ countryName ++ "/"
 
--- primeti ovde da sam menjao putanju jer ja kod mene pokrecem program iz roditeljskog direktorijuma
-
+-- Creates map of pairs - (countryName, hmm)
 evaluateMapOfModels :: IO (Map String HMM)
 evaluateMapOfModels = do 
                    countryDirs <- listDirectory "../img/"
                    models <- mapM evaluateCountryModel countryDirs
                    return $ MP.fromList $ zip countryDirs models
  
+-- Writing model in file
 writeModel :: String -> HMM -> IO ()                  
 writeModel countryName (HMM p q s) = do
                               writeFile ("../models/" ++ countryName ++ ".flag") modelRepresentation
                               where modelRepresentation = unlines $ fmap show $ map2D fromLogFloat [M.toList p, M.toList q, s]
-                              
+
+-- Reading model of given country                             
 readModel :: String -> IO HMM
 readModel countryName = do
                         contents <- fmap lines $ readFile ("../models/" ++ countryName ++ ".flag")
@@ -49,17 +53,20 @@ readModel countryName = do
                         let parsedData = map2D logFloat (fmap read contents :: [[Double]])
                         let model = HMM (M.fromList n n $ parsedData !! 0) (M.fromList n m $ parsedData !! 1) (parsedData !! 2)
                         return model
-                        
+
+-- Country model to stdout                        
 learnCountry :: String -> IO ()
 learnCountry name = do
                     model <- evaluateCountryModel name
                     writeModel name model
-                        
+
+-- Writes all learned models in files                       
 learning :: IO ()
 learning = do
            models <- evaluateMapOfModels
            mapM_ (\(name, hmm) -> writeModel name hmm) $ MP.toList models
-           
+  
+-- Draws approximate model output for each country         
 drawModels :: IO ()
 drawModels = do
              countryDirs <- listDirectory "../img/"
@@ -67,7 +74,7 @@ drawModels = do
              let modelNames = zip countryDirs $ models
              mapM_ (\(name, hmm) -> drawFromList (generateApproximateModelOutput hmm (gridSize^2)) name) modelNames
            
-           
+-- Finds the most likely model for given picture           
 classification :: IO ()
 classification = do
                  countryDirs <- listDirectory "../img/"
@@ -84,3 +91,15 @@ classification = do
                  print probabilities
        
                  print $ fst $ maximumBy (comparing snd) probabilities
+                 
+                 
+-- Executes program
+exec :: String -> IO ()
+exec "classify" = classification
+exec "learn" = learning
+exec "draw" = drawModels
+exec err = putStrLn "Pogresna komanda!"
+
+
+
+

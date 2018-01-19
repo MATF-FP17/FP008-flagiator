@@ -66,15 +66,16 @@ defaultHMM n m = HMM (constMatrix n n $ inv n)
 neutralFieldProb :: LogFloat
 neutralFieldProb = 0.1
 
+-- Adding neutral field row and column in transition matrix
 createTransitions :: Matrix LogFloat -> Matrix LogFloat
 createTransitions old = (scaleRowsK (1-neutralFieldProb) (old <-> neutralFieldRow)) <|> neutralFieldCol
                      where neutralFieldCol = M.fromList (n+1) 1 $ repeat neutralFieldProb
                            neutralFieldRow = M.fromList 1 n $ repeat (inv n)
                            n = ncols old
 
--- Constructor that makes a priori model from first examplee
+-- Constructor that makes a priori model from first example
 -- Transition matrix represents scaled counted transitions
--- n - broj polja u gridu, m - broj boja
+-- n - number of fields in grid, m - number of colours
 fromList :: Int -> Int -> [Int] -> HMM
 fromList n m l@(h:t) = HMM p q s
                     where p = createTransitions $ matrix n n evaluateFieldsDistance
@@ -85,19 +86,20 @@ fromList n m l@(h:t) = HMM p q s
                           evaluateColorsDistance = \ (i,j) -> inverseDistance $ colorDistance (l !! (i-1)) j
                           neutralFieldRow = M.fromList 1 m $ repeat (inv m) 
 
+-- Scales matrix to row sum of 1
 scaleRows :: Matrix LogFloat -> Matrix LogFloat
 scaleRows = scaleRowsK 1
 
--- Scales transition matrix to sum of 1
+-- Scales matrix to sum of k
 scaleRowsK :: LogFloat -> Matrix LogFloat -> Matrix LogFloat
 scaleRowsK k m = fromLists $ fmap (\l -> fmap ((*k) . (/(LF.sum l))) l) (M.toLists m)
 
 -- Counts transitions in list
 countTransitions :: Int -> [Int] -> Matrix LogFloat
-countTransitions n l = P.foldl increse (M.fromList n n $ repeat 1) $ P.zip l $ P.tail l
+countTransitions n l = P.foldl increase (M.fromList n n $ repeat 1) $ P.zip l $ P.tail l
 
-increse :: Num a => Matrix a -> (Int, Int) -> Matrix a
-increse m (x, y) = setElem ((getElem x y m) + 1) (x, y) m
+increase :: Num a => Matrix a -> (Int, Int) -> Matrix a
+increase m (x, y) = setElem ((getElem x y m) + 1) (x, y) m
 
 
 

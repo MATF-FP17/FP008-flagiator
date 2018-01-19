@@ -24,6 +24,7 @@ fstCoordinateInverse x
 sndCoordinateInverse :: Integer -> Integer
 sndCoordinateInverse x = ((x + 1) `div` 2 ^ (fstCoordinateInverse x) - 1) `div` 2
 
+-- Kodiranje jedne RGB komponente u skup {1..colorScalingFactor}
 encodeCoord :: Double -> Int
 encodeCoord p = if m == colorScalingFactor then colorScalingFactor - 1 else m
               where m = floor (p * fromIntegral colorScalingFactor)
@@ -34,8 +35,8 @@ decodeCoord m = ((fromIntegral m) + 0.5) / (fromIntegral colorScalingFactor)
 maxEncodedColor :: Int
 maxEncodedColor = encodeRGB $ PixelRGB 1 1 1
 
--- "Kodiranje" uredjene trojke RGB komponenti piksela (koje su tipa LogFloat iz [0,1]), 
--- u skup {1..colorScalingFactor}
+-- "Kodiranje" uredjene trojke RGB komponenti piksela (koje su tipa Double iz [0,1]), 
+-- u prirodan broj
 encodeRGB :: Pixel RGB Double -> Int
 encodeRGB (PixelRGB r g b) = m * colorScalingFactor ^ 2 + n * colorScalingFactor + k + 1
                            where m = encodeCoord r
@@ -49,14 +50,7 @@ decodeRGB y = PixelRGB (decodeCoord r) (decodeCoord g) (decodeCoord b)
                               g = fromIntegral $ (x `div` colorScalingFactor) `mod` colorScalingFactor 
                               b = fromIntegral $ x `mod` colorScalingFactor
                               x = y - 1
-          
--- Preslikavanje skupa svih RGB piksela sa komponentama iz [0,1] na skup RGB piksela 
--- cija je svaka komponenta zaokruzena na jednu decimalu
-mapPixelComponents :: Pixel RGB Double -> Pixel RGB Double
-mapPixelComponents (PixelRGB r g b) = PixelRGB (f r) (f g) (f b)
-                                        where f = \x -> (fromIntegral (round (x * 10)) / 10)
-
-      
+             
 -- F-ja akumulacije koja kao inicijalnu vrednost uzima prvi element liste
 foldlWithHeadAsInit :: (a -> a -> a) -> [a] -> a
 foldlWithHeadAsInit f list = P.foldl f (head list) (tail list)
@@ -78,19 +72,19 @@ imageFromGrid :: [[Image VU RGB Double]] -> Image VU RGB Double
 imageFromGrid grid = let groupedCols = P.map (foldlWithHeadAsInit topToBottom) grid
                      in  (foldlWithHeadAsInit leftToRight) groupedCols
 
--- Matrica prosecnih piksela svakom od elemenata mreze dimenzije m x n zaokruzenih na jednu decimalu
+-- Matrica prosecnih piksela svakom od elemenata mreze dimenzije m x n 
 averagePixelsInGrid :: Image VU RGB Double -> Int -> Int -> [[Pixel RGB Double]]
 averagePixelsInGrid image m n = map2D calcAveragePixel (makeGrid image m n)
                           where calcAveragePixel = \x -> I.sum (x / ( fromIntegral $ (rows x) * (cols x)))
                           
--- Lista prosecnih piksela
+-- Lista kodiranih prosecnih piksela
 listFromGrid :: [[Pixel RGB Double]] -> [Int]
 listFromGrid grid = fmap (fromIntegral.encodeRGB) $ concat grid
 
 
 -- Rastojanje izmedju dva kodirana piksela
 colorDistance :: Int -> Int -> LogFloat
-colorDistance pixel1Code pixel2Code = logFloat $ fromIntegral $ ((encodeCoord r1) - (encodeCoord r2)) ^ 2 + ((encodeCoord g1) - (encodeCoord g2)) ^ 2 + ((encodeCoord b1) - (encodeCoord b2)) ^ 2
+colorDistance pixel1Code pixel2Code = logFloat $ fromIntegral $ ((encodeCoord r1)-(encodeCoord r2))^2 + ((encodeCoord g1) - (encodeCoord g2)) ^ 2 + ((encodeCoord b1) - (encodeCoord b2)) ^ 2
                                            where (PixelRGB r1 g1 b1) = decodeRGB pixel1Code
                                                  (PixelRGB r2 g2 b2) = decodeRGB pixel2Code
 

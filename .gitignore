@@ -43,9 +43,5 @@ dist
 *#
 *~
 
-# Images
-*.jpg
-*.png
-
 # Bocko's HIP
 *hip-1.5.3.0
