@@ -3,7 +3,7 @@ module ImageProcessing where
 import Prelude as P
 import Graphics.Image as I 
 import Graphics.Image.Interface
-import Data.List
+import Data.List as L
 import Data.Matrix as M
 import Data.Number.LogFloat
 
@@ -106,12 +106,27 @@ gridOfAveragePieces image m n = map2D createGridPiece (averagePixelsInGrid image
                                 pieceRows =  (rows image) `div` m
                                 pieceCols =  (cols image) `div` n
 
-drawFromList :: [Int] -> String -> IO ()
-drawFromList l name = do
+drawFromList :: [Pixel RGB Double] -> String -> String -> IO ()
+drawFromList l path name = do
         let n = round $ sqrt $ fromIntegral $ length l
-        let image = imageFromGrid $ map2D (\ y -> makeImageR VU (100, 100) (\ (i, j) -> y)) $ M.toLists $ M.fromList n n $ fmap decodeRGB l
-        displayImage image
-        writeImage (name ++ ".jpg") image
+        let image = imageFromGrid $ map2D (\ y -> makeImageR VU (100, 100) (\ (i, j) -> y)) $ M.toLists $ M.fromList n n l
+--        displayImage image
+        writeImage (path ++ name ++ ".jpg") image
+
+drawFromListOfCodes :: [Int] -> String -> IO ()
+drawFromListOfCodes l = drawFromList (fmap decodeRGB l) "drawings1/"
+
+drawFromListOfProbabilities :: [[Double]] -> String -> IO ()
+drawFromListOfProbabilities l = drawFromList (fmap ponderedColor l) "drawings/"
+
+ponderedColor :: [Double] -> Pixel RGB Double
+ponderedColor l = L.foldl sumColors (PixelRGB 0 0 0) $ P.zipWith scaleColor l $ (fmap decodeRGB [1..])
+
+sumColors :: Pixel RGB Double -> Pixel RGB Double -> Pixel RGB Double
+sumColors (PixelRGB r1 g1 b1) (PixelRGB r2 g2 b2) = PixelRGB (r1+r2) (g1+g2) (b1+b2)
+
+scaleColor :: Double -> Pixel RGB Double -> Pixel RGB Double
+scaleColor d (PixelRGB r g b) = PixelRGB (d*r) (d*g) (d*b)
 
 exec :: IO ()
 exec = do

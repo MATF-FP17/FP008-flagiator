@@ -29,25 +29,25 @@ evaluateCountryModel countryName = do
             let codedPixelsLists = fmap (\x -> listFromGrid (averagePixelsInGrid x gridSize gridSize)) images
             let countryModel = P.foldl baumWelchAlgorithm (prior priorImage) codedPixelsLists
             return countryModel
-            where dirPath = "../img/" ++ countryName ++ "/"
+            where dirPath = "img/" ++ countryName ++ "/"
 
 -- Creates map of pairs - (countryName, hmm)
 evaluateMapOfModels :: IO (Map String HMM)
 evaluateMapOfModels = do 
-                   countryDirs <- listDirectory "../img/"
+                   countryDirs <- listDirectory "img/"
                    models <- mapM evaluateCountryModel countryDirs
                    return $ MP.fromList $ zip countryDirs models
  
 -- Writing model in file
 writeModel :: String -> HMM -> IO ()                  
 writeModel countryName (HMM p q s) = do
-                              writeFile ("../models/" ++ countryName ++ ".flag") modelRepresentation
+                              writeFile ("models/" ++ countryName ++ ".flag") modelRepresentation
                               where modelRepresentation = unlines $ fmap show $ map2D fromLogFloat [M.toList p, M.toList q, s]
 
 -- Reading model of given country                             
 readModel :: String -> IO HMM
 readModel countryName = do
-                        contents <- fmap lines $ readFile ("../models/" ++ countryName ++ ".flag")
+                        contents <- fmap lines $ readFile ("models/" ++ countryName ++ ".flag")
                         let n = gridSize ^ 2 + 1
                         let m = maxEncodedColor
                         let parsedData = map2D logFloat (fmap read contents :: [[Double]])
@@ -69,15 +69,16 @@ learning = do
 -- Draws approximate model output for each country         
 drawModels :: IO ()
 drawModels = do
-             countryDirs <- listDirectory "../img/"
+             countryDirs <- listDirectory "img/"
              models <- mapM readModel countryDirs
              let modelNames = zip countryDirs $ models
-             mapM_ (\(name, hmm) -> drawFromList (generateApproximateModelOutput hmm (gridSize^2)) name) modelNames
+             mapM_ (\(name, hmm) -> drawFromListOfProbabilities (generateApproximateProbabilities hmm) name) modelNames
+--             mapM_ (\(name, hmm) -> drawFromListOfCodes (generateMaximalProbabilities hmm) name) modelNames
            
 -- Finds the most likely model for given picture           
 classification :: IO ()
 classification = do
-                 countryDirs <- listDirectory "../img/"
+                 countryDirs <- listDirectory "img/"
                  models <- mapM readModel countryDirs
                  let modelNames = zip countryDirs $ models
        

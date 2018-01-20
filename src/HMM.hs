@@ -179,9 +179,11 @@ generateIteration p i = let
 --                                                       in fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) $ P.foldl push [maxIndex s] [1..len]
 
 
-generateApproximateModelOutput :: HMM -> Int -> [Int]
-generateApproximateModelOutput model@(HMM p q s) len =  fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) [1..len]
+generateMaximalProbabilities :: HMM -> [Int]
+generateMaximalProbabilities model@(HMM p q s) =  fmap (\i -> maxIndex [q!(i, j) | j <- [1..(m model)]]) [1..(n model)]
 
+generateApproximateProbabilities :: HMM -> [[Double]]
+generateApproximateProbabilities (HMM p q s)= map2D fromLogFloat $ toLists q
 
 -- TESTS KOCKICE
 
