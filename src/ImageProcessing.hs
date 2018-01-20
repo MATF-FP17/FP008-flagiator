@@ -88,10 +88,17 @@ colorDistance pixel1Code pixel2Code = logFloat $ fromIntegral $ ((encodeCoord r1
                                            where (PixelRGB r1 g1 b1) = decodeRGB pixel1Code
                                                  (PixelRGB r2 g2 b2) = decodeRGB pixel2Code
 
+fieldDistance' :: Int -> Int -> Int -> LogFloat
+fieldDistance' x y k
+                      | x == y = fromIntegral $ k * k
+                      | otherwise = fromIntegral $ k * (abs ((first x) - (first y))) + (abs ((second x) - (second y)))
+                      where first a = ((a-1) `div` k) + 1
+                            second a = ((a-1) `mod` k) + 1
+
 fieldDistance :: Int -> Int -> Int -> LogFloat
 fieldDistance x y k
                       | x == y = fromIntegral $ k * k
-                      | otherwise = fromIntegral $ k * (abs ((first x) - (first y))) + (abs ((second x) - (second y)))
+                      | otherwise = fromIntegral $ (abs ((first x) - (first y))) + (abs ((second x) - (second y)))
                       where first a = ((a-1) `div` k) + 1
                             second a = ((a-1) `mod` k) + 1
                       

@@ -64,7 +64,7 @@ defaultHMM n m = HMM (constMatrix n n $ inv n)
                      (M.toList $ constMatrix 1 n $ inv n)
 
 neutralFieldProb :: LogFloat
-neutralFieldProb = 0.1
+neutralFieldProb = 1/15 --inv gridSize
 
 -- Adding neutral field row and column in transition matrix
 createTransitions :: Matrix LogFloat -> Matrix LogFloat
@@ -152,7 +152,7 @@ learnQ' :: HMM -> [Int] -> Matrix LogFloat
 learnQ' model@(HMM p q s) ys = let
                                     alphas = M.transpose $ submatrix 2 ((length ys) + 1) 1 (n model) $ forwardAlgorithm' model ys
                                     betas = M.transpose $ submatrix 2 ((length ys) + 1) 1 (n model) $ backwardAlgorithm' model ys
-                                    ind = matrix (length ys) (m model) (\(i, j) -> if ys!!(i-1) == j then (logFloat 1) else (logFloat 0.0001))       -- alternativa / filtrirati pa sumirati prvu matricu
+                                    ind = matrix (length ys) (m model) (\(i, j) -> if ys!!(i-1) == j then (logFloat 1) else (logFloat 0.000001))       -- alternativa / filtrirati pa sumirati prvu matricu
                                in scaleRows $ (scalarMatrixProduct alphas betas) * ind
 
 baumWelchAlgorithm :: HMM -> [Int] -> HMM
