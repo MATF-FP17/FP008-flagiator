@@ -67,42 +67,60 @@ learnCountry name = do
 learning :: IO ()
 learning = do
            models <- evaluateMapOfModels
-           mapM_ (\(name, hmm) -> writeModel name hmm) $ concat $ take learningIterations $ repeat $ MP.toList models
+           mapM_ (\(name, hmm) -> writeModel name hmm) $ concat $ P.take learningIterations $ repeat $ MP.toList models
   
 -- Draws approximate model output for each country         
 drawModels :: IO ()
 drawModels = do
-             countryDirs <- listDirectory "img/"
-             models <- mapM readModel countryDirs
-             let modelNames = zip countryDirs $ models
-             mapM_ (\(name, hmm) -> drawFromListOfProbabilities (generateApproximateProbabilities hmm) name) modelNames
-             mapM_ (\(name, hmm) -> drawFromListOfCodes (generateMaximalProbabilities hmm) name) modelNames
-           
+             countryNames <- listDirectory "img/"
+             mapM_ drawModel countryNames
+
+drawModel :: String -> IO ()
+drawModel countryName = do
+                        model <- readModel countryName
+                        drawFromListOfProbabilities (generateApproximateProbabilities model) countryName
+                        drawFromListOfCodes (generateMaximalProbabilities model) countryName
+
 -- Finds the most likely model for given picture           
-classification :: IO ()
-classification = do
+classify :: String -> IO ()
+classify imageName = do
                  countryDirs <- listDirectory "img/"
                  models <- mapM readModel countryDirs
                  let modelNames = zip countryDirs $ models
        
-                 putStrLn "Uneti ime slike:"
-                 imageName <- getLine
                  image <- readImageRGB VU imageName
                  let sample = listFromGrid $ averagePixelsInGrid image gridSize gridSize
        
                  let probabilities = fmap (\(name, hmm) -> (name, evaluateSample hmm sample)) modelNames
                  
-                 print probabilities
+--                 print probabilities
        
-                 print $ fst $ maximumBy (comparing snd) probabilities
+                 print (imageName, fst $ maximumBy (comparing snd) probabilities)
                  
+classification :: IO ()
+classification = do
+                 samples <- listDirectory "samples/"
+                 mapM_ classify $ fmap ("samples/" ++ ) samples
                  
 -- Executes program
 exec :: String -> IO ()
-exec "classify" = classification
-exec "learn" = learning
-exec "draw" = drawModels
+exec "classification" = classification
+exec "clasify" = do
+                 putStrLn "Uneti ime slike:"
+                 imageName <- getLine
+		 classify imageName
+exec "learning" = learning
+exec "learn" = do
+                 putStrLn "Uneti ime drzave:"
+                 countryName <- getLine
+                 learnCountry countryName
+exec "drawing" = drawModels
+exec "draw" = do
+                 putStrLn "Uneti ime drzave:"
+                 countryName <- getLine
+                 drawModel countryName
 exec err = putStrLn "Pogresna komanda!"
+
 
 
 
