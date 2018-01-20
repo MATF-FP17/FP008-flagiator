@@ -14,6 +14,6 @@ main = do
        putStrLn "Uneti komandu:"
        command <- getLine
        Learning.exec command
---     learnCountry "trinidad_and_tobago"
---     mapM_vprint (generateApproximateModelOutput hmm 9)) $ Data.Map.toList models
---     mapM_ (\(name, hmm) -> drawFromList (generateApproximateModelOutput hmm 9) name) $ Data.Map.toList models
+--     learnCountry "portugal"
+--     learnCountry "argentina"
+

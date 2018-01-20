@@ -9,7 +9,7 @@ import Data.Number.LogFloat
 
 -- Konstanta za skaliranje pri kodiranju piksela
 colorScalingFactor :: Int
-colorScalingFactor = 5
+colorScalingFactor = 7
 
 -- Bijekcija N x N -> N
 twoCoordinateBijection :: Integer -> Integer -> Integer
@@ -114,10 +114,10 @@ drawFromList l path name = do
         writeImage (path ++ name ++ ".jpg") image
 
 drawFromListOfCodes :: [Int] -> String -> IO ()
-drawFromListOfCodes l = drawFromList (fmap decodeRGB l) "drawings1/"
+drawFromListOfCodes l = drawFromList (fmap decodeRGB l) "drawings/"
 
 drawFromListOfProbabilities :: [[Double]] -> String -> IO ()
-drawFromListOfProbabilities l = drawFromList (fmap ponderedColor l) "drawings/"
+drawFromListOfProbabilities l = drawFromList (fmap ponderedColor l) "drawings1/"
 
 ponderedColor :: [Double] -> Pixel RGB Double
 ponderedColor l = L.foldl sumColors (PixelRGB 0 0 0) $ P.zipWith scaleColor l $ (fmap decodeRGB [1..])

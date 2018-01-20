@@ -13,7 +13,10 @@ import Data.Map as MP
 import System.IO
 
 gridSize :: Int
-gridSize = 10
+gridSize = 15
+
+learningIterations :: Int
+learningIterations = 5
 
 
 -- HMM created from just one image
@@ -64,7 +67,7 @@ learnCountry name = do
 learning :: IO ()
 learning = do
            models <- evaluateMapOfModels
-           mapM_ (\(name, hmm) -> writeModel name hmm) $ MP.toList models
+           mapM_ (\(name, hmm) -> writeModel name hmm) $ concat $ take learningIterations $ repeat $ MP.toList models
   
 -- Draws approximate model output for each country         
 drawModels :: IO ()
@@ -73,7 +76,7 @@ drawModels = do
              models <- mapM readModel countryDirs
              let modelNames = zip countryDirs $ models
              mapM_ (\(name, hmm) -> drawFromListOfProbabilities (generateApproximateProbabilities hmm) name) modelNames
---             mapM_ (\(name, hmm) -> drawFromListOfCodes (generateMaximalProbabilities hmm) name) modelNames
+             mapM_ (\(name, hmm) -> drawFromListOfCodes (generateMaximalProbabilities hmm) name) modelNames
            
 -- Finds the most likely model for given picture           
 classification :: IO ()
