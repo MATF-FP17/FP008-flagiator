@@ -116,7 +116,7 @@ gridOfAveragePieces image m n = map2D createGridPiece (averagePixelsInGrid image
 drawFromList :: [Pixel RGB Double] -> String -> String -> IO ()
 drawFromList l path name = do
         let n = round $ sqrt $ fromIntegral $ length l
-        let image = imageFromGrid $ map2D (\ y -> makeImageR VU (100, 100) (\ (i, j) -> y)) $ M.toLists $ M.fromList n n l
+        let image = imageFromGrid $ map2D (\ y -> makeImageR VU (40, 40) (\ (i, j) -> y)) $ M.toLists $ M.fromList n n l
 --        displayImage image
         writeImage (path ++ name ++ ".jpg") image
 

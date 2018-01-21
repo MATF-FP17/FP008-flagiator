@@ -30,7 +30,7 @@ evaluateCountryModel countryName = do
             images <- mapM (readImageRGB VU) $ fmap (dirPath ++ ) countryContents
             priorImage <- readImageRGB VU (dirPath ++ "0.png")
             let codedPixelsLists = fmap (\x -> listFromGrid (averagePixelsInGrid x gridSize gridSize)) images
-            let countryModel = P.foldl baumWelchAlgorithm (prior priorImage) codedPixelsLists
+            let countryModel = P.foldl baumWelchAlgorithm (prior priorImage) $ concat $ P.take learningIterations $ repeat codedPixelsLists
             return countryModel
             where dirPath = "img/" ++ countryName ++ "/"
 
@@ -44,8 +44,9 @@ evaluateMapOfModels = do
 -- Writing model in file
 writeModel :: String -> HMM -> IO ()                  
 writeModel countryName (HMM p q s) = do
-                              writeFile ("models/" ++ countryName ++ ".flag") modelRepresentation
-                              where modelRepresentation = unlines $ fmap show $ map2D fromLogFloat [M.toList p, M.toList q, s]
+                                     putStrLn $ "Writing " ++ countryName ++ " model..."
+                                     writeFile ("models/" ++ countryName ++ ".flag") modelRepresentation
+                                     where modelRepresentation = unlines $ fmap show $ map2D fromLogFloat [M.toList p, M.toList q, s]
 
 -- Reading model of given country                             
 readModel :: String -> IO HMM
@@ -59,24 +60,28 @@ readModel countryName = do
 
 -- Country model to stdout                        
 learnCountry :: String -> IO ()
-learnCountry name = do
-                    model <- evaluateCountryModel name
-                    writeModel name model
+learnCountry countryName = do
+                           putStrLn $ "Learning " ++ countryName ++ "..."
+                           model <- evaluateCountryModel countryName
+                           writeModel countryName model
 
 -- Writes all learned models in files                       
 learning :: IO ()
 learning = do
+           putStrLn $ "Learning..."
            models <- evaluateMapOfModels
-           mapM_ (\(name, hmm) -> writeModel name hmm) $ concat $ P.take learningIterations $ repeat $ MP.toList models
+           mapM_ (\(name, hmm) -> writeModel name hmm) $ MP.toList models
   
 -- Draws approximate model output for each country         
 drawModels :: IO ()
 drawModels = do
+             putStrLn $ "Drawing..."
              countryNames <- listDirectory "img/"
              mapM_ drawModel countryNames
 
 drawModel :: String -> IO ()
 drawModel countryName = do
+                        putStrLn $ "Drawing " ++ countryName ++ " model..."
                         model <- readModel countryName
                         drawFromListOfProbabilities (generateApproximateProbabilities model) countryName
                         drawFromListOfCodes (generateMaximalProbabilities model) countryName
@@ -84,6 +89,8 @@ drawModel countryName = do
 -- Finds the most likely model for given picture           
 classify :: String -> IO ()
 classify imageName = do
+                 putStrLn $ "Classifying " ++ imageName ++ "..."
+
                  countryDirs <- listDirectory "img/"
                  models <- mapM readModel countryDirs
                  let modelNames = zip countryDirs $ models
@@ -97,18 +104,26 @@ classify imageName = do
        
                  print (imageName, fst $ maximumBy (comparing snd) probabilities)
                  
+classifyFolder :: String -> IO ()
+classifyFolder folderPath = do
+                            putStrLn $ "Classifying " ++ folderPath ++ "..."
+                            samples <- listDirectory folderPath
+                            mapM_ classify $ fmap (folderPath ++ ) samples
+                 
 classification :: IO ()
-classification = do
-                 samples <- listDirectory "samples/"
-                 mapM_ classify $ fmap ("samples/" ++ ) samples
+classification = classifyFolder "samples/"
                  
 -- Executes program
 exec :: String -> IO ()
 exec "classification" = classification
-exec "clasify" = do
+exec "classify" = do
                  putStrLn "Uneti ime slike:"
                  imageName <- getLine
 		 classify imageName
+exec "clasifyfolder" = do
+                 putStrLn "Uneti ime foldera:"
+                 folderPath <- getLine
+		 classifyFolder folderPath
 exec "learning" = learning
 exec "learn" = do
                  putStrLn "Uneti ime drzave:"
@@ -119,6 +134,10 @@ exec "draw" = do
                  putStrLn "Uneti ime drzave:"
                  countryName <- getLine
                  drawModel countryName
+exec "all" = do
+             learning
+             drawModels
+             classification
 exec err = putStrLn "Pogresna komanda!"
 
 
